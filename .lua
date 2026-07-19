@@ -1064,3 +1064,175 @@ AddToggle(Visuais, {
         end
     end
 })
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local trackedPlayers = {}
+local antiFlingEnabled = false
+
+local function setCollide(part, state)
+    if part:IsA("BasePart") then
+        part.CanCollide = state
+    end
+end
+
+local function trackCharacter(character)
+    for _, part in pairs(character:GetChildren()) do
+        setCollide(part, not antiFlingEnabled)
+    end
+    character.ChildAdded:Connect(function(child)
+        setCollide(child, not antiFlingEnabled)
+    end)
+end
+
+local function trackPlayer(player)
+    if player == localPlayer then return end
+    if player.Character then
+        trackCharacter(player.Character)
+    end
+    player.CharacterAdded:Connect(trackCharacter)
+    trackedPlayers[player] = true
+end
+
+local function applyState(state)
+    for player in pairs(trackedPlayers) do
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetChildren()) do
+                setCollide(part, state)
+            end
+        end
+    end
+end
+
+local function enableTracking()
+    for _, player in pairs(Players:GetPlayers()) do
+        trackPlayer(player)
+    end
+    Players.PlayerAdded:Connect(trackPlayer)
+    RunService.RenderStepped:Connect(function()
+        if antiFlingEnabled then
+            for player in pairs(trackedPlayers) do
+                local character = player.Character
+                if character then
+                    for _, part in pairs(character:GetChildren()) do
+                        setCollide(part, false)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+AddToggle(Config, {
+    Name = "Anti Arremesso",
+    Default = false,
+    Callback = function(state)
+        antiFlingEnabled = state
+        if antiFlingEnabled then
+            if next(trackedPlayers) == nil then
+                enableTracking()
+            end
+        else
+            applyState(true)
+        end
+    end
+})
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local zoomInfinitoAtivo = false
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if zoomInfinitoAtivo then
+        task.wait(0.5)
+        LocalPlayer.CameraMaxZoomDistance = math.huge
+    end
+end)
+
+AddToggle(Config, {
+    Name = "Zoom Infinito",
+    Default = false,
+    Callback = function(state)
+        zoomInfinitoAtivo = state
+        if state then
+            LocalPlayer.CameraMaxZoomDistance = math.huge
+        else
+            LocalPlayer.CameraMaxZoomDistance = 128
+        end
+    end
+})
+
+
+local Workspace = game:GetService("Workspace")
+local storedTransparency = {}
+
+local function setXRay(state)
+    if state then
+        for _, part in ipairs(Workspace:GetDescendants()) do
+            if part:IsA("BasePart") and part.Transparency < 0.5 then
+                storedTransparency[part] = part.Transparency
+                part.Transparency = 0.7
+            end
+        end
+    else
+        for part, t in pairs(storedTransparency) do
+            if part and part:IsA("BasePart") then
+                part.Transparency = t
+            end
+        end
+        storedTransparency = {}
+    end
+end
+
+AddToggle(Config, {
+    Name = "Raio X",
+    Default = false,
+    Callback = function(state)
+        setXRay(state)
+    end
+})
+
+AddButton(Config, {
+    Name = "Aumento de FPS",
+    Callback = function()
+        pcall(function()
+            local descendants = workspace:GetDescendants()
+            for i = 1, #descendants do
+                local v = descendants[i]
+                if v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+                    v.Material = Enum.Material.SmoothPlastic
+                    v.Reflectance = 0
+                    v.CastShadow = false
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v.Transparency = 1
+                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") then
+                    v:Destroy()
+                end
+            end
+
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+                workspace.GlobalShadows = false 
+
+                local lighting = game:GetService("Lighting")
+                if lighting then
+                    lighting.FogEnd = 1e10 
+                    lighting.GlobalShadows = false
+                    lighting.Brightness = 2
+                    
+                    local effects = lighting:GetChildren()
+                    for i = 1, #effects do
+                        local effect = effects[i]
+                        if effect:IsA("PostEffect") or effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
+                            effect:Destroy()
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+})
