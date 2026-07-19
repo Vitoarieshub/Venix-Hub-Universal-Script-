@@ -450,7 +450,7 @@ local SkidFling = function(TargetPlayer)
     workspace.FallenPartsDestroyHeight = getgenv().FPDH
 end
 
-AddTextBox(Jogador, {
+AddTextBox(Trollar, {
 	Name = "Alvo",
 	Default = "",
 	Placeholder = "Nome do jogador",
@@ -459,7 +459,7 @@ AddTextBox(Jogador, {
 	end
 })
 
-AddToggle(Jogador, {
+AddToggle(Trollar, {
 	Name = "Visualizar",
 	Default = false,
 	Callback = function(state)
@@ -491,7 +491,7 @@ AddToggle(Jogador, {
 	end
 })
 
-AddButton(Jogador, {
+AddButton(Trollar, {
 	Name = "Teleportar",
 	Callback = function()
 		if jogadorDigitado and jogadorDigitado ~= "" then
@@ -508,7 +508,7 @@ AddButton(Jogador, {
 	end
 })
 
-AddButton(Jogador, {
+AddButton(Trollar, {
 	Name = "Arremessar Jogador",
 	Callback = function()
 		if jogadorDigitado and jogadorDigitado ~= "" then
@@ -536,7 +536,7 @@ AddButton(Jogador, {
 })
 
 
-AddButton(Jogador, {
+AddButton(Trollar, {
     Name = "Arremessar Todos",
     Callback = function()
         print("Botão foi clicado!")
@@ -1921,7 +1921,7 @@ Mouse.Button1Down:Connect(function()
     end
 end)
 
-AddToggle(Jogador, {
+AddToggle(Trollar, {
     Name = "Click Fling",
     Default = false,
     Callback = function(state)
