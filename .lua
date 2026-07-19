@@ -547,112 +547,239 @@ AddButton(Jogador, {
 }) 
 
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local Mouse = Player:GetMouse()
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local clickFlingAtivo = false
-getgenv().FPDH = workspace.FallenPartsDestroyHeight
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local function SkidFling(TargetPlayer)
-    if not TargetPlayer then return end
-    local Character = Player.Character
-    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-    local RootPart = Humanoid and Humanoid.RootPart
-    local TCharacter = TargetPlayer.Character
+local Enabled = false
+local Connection = nil
+local InputBeganConn, InputChangedConn, InputEndedConn = nil, nil, nil
 
-    if not (Character and Humanoid and RootPart and TCharacter) then return end
+local Speed = 85
+local Sensitivity = 0.27
+local TouchSensitivity = 0.35
 
-    local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
-    local TRootPart = THumanoid and THumanoid.RootPart
-    local THead = TCharacter:FindFirstChild("Head")
-    local Accessory = TCharacter:FindFirstChildOfClass("Accessory")
-    local Handle = Accessory and Accessory:FindFirstChild("Handle")
-    local BasePartAlvo = (TRootPart and THead and ((TRootPart.CFrame.p - THead.CFrame.p).Magnitude > 5 and THead or TRootPart)) or TRootPart or THead or Handle
+local Pitch = 0
+local Yaw = 0
 
-    if not BasePartAlvo then return end
+local LookTouch = nil
+local LastTouchPos = nil
 
-    if RootPart.Velocity.Magnitude < 50 then getgenv().OldPos = RootPart.CFrame end
+local FreeCamGui = nil
+local TeleportButton = nil
 
-    Humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-
-    local function FPos(BasePart, Pos, Ang)
-        local anguloDeitado = CFrame.Angles(math.rad(90), 0, 0)
-        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado
-        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado)
-        RootPart.Velocity = Vector3.new(9e9, 9e9 * 15, 9e9)
-        RootPart.RotVelocity = Vector3.new(9e9, 9e9, 9e9)
-    end
-
-    workspace.FallenPartsDestroyHeight = 0/0
-    local BV = Instance.new("BodyVelocity")
-    BV.Name = "EpixVel"
-    BV.Parent = RootPart
-    BV.Velocity = Vector3.new(9e9, 9e9, 9e9)
-    BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
-
-    local Time, Angle = tick(), 0
-    repeat
-        if not (RootPart and THumanoid and BasePartAlvo.Parent) then break end
-        if BasePartAlvo.Velocity.Magnitude < 50 then
-            Angle = Angle + 500
-            local mod = THumanoid.MoveDirection * BasePartAlvo.Velocity.Magnitude / 1.25
-            FPos(BasePartAlvo, CFrame.new(0, 1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
-            FPos(BasePartAlvo, CFrame.new(0, -1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
-        else
-            local ws = THumanoid.WalkSpeed
-            FPos(BasePartAlvo, CFrame.new(0, 1.5, ws), CFrame.Angles(0, 0, 0)) task.wait()
-            FPos(BasePartAlvo, CFrame.new(0, -1.5, -ws), CFrame.Angles(0, 0, 0)) task.wait()
-        end
-    until BasePartAlvo.Velocity.Magnitude > 1000 or BasePartAlvo.Parent ~= TCharacter or TargetPlayer.Parent ~= Players or Humanoid.Health <= 0 or tick() > Time + 1.5
-
-    BV:Destroy()
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
-
-    repeat
-        RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
-        Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
-        Humanoid:ChangeState("GettingUp")
-        for _, x in ipairs(Character:GetChildren()) do
-            if x:IsA("BasePart") then x.Velocity, x.RotVelocity = Vector3.new(), Vector3.new() end
-        end
-        task.wait()
-    until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
-    workspace.FallenPartsDestroyHeight = getgenv().FPDH
+local function IsInLookZone(input)
+    local viewport = Camera.ViewportSize
+    return input.Position.X > viewport.X * 0.5
 end
 
-Mouse.Button1Down:Connect(function()
-    if not clickFlingAtivo then return end
-    
-    local alvoObjeto = Mouse.Target
-    if alvoObjeto and alvoObjeto.Parent then
-        local pCharacter = alvoObjeto.Parent:IsA("Accessory") and alvoObjeto.Parent.Parent or alvoObjeto.Parent
-        local alvoJogador = Players:GetPlayerFromCharacter(pCharacter)
-        
-        if alvoJogador and alvoJogador ~= Player then
-            if alvoJogador.UserId == 1414978355 then return end
-            
-            local hl = Instance.new("Highlight")
-            hl.Adornee = pCharacter
-            hl.FillColor = Color3.fromRGB(255, 255, 255)
-            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-            hl.FillTransparency = 0.5
-            hl.OutlineTransparency = 0
-            hl.Parent = pCharacter
-            
-            SkidFling(alvoJogador)
-            
-            hl:Destroy()
-        end
+local function TeleportToLook()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local origin = Camera.CFrame.Position
+    local direction = Camera.CFrame.LookVector * 2000
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {char}
+    params.IgnoreWater = true
+
+    local result = workspace:Raycast(origin, direction, params)
+
+    local targetPos
+    if result then
+        targetPos = result.Position + Vector3.new(0, 3, 0)
+    else
+        targetPos = origin + Camera.CFrame.LookVector * 300
     end
-end)
+
+    hrp.CFrame = CFrame.new(targetPos)
+end
+
+local function CreateFreeCamGui()
+    if FreeCamGui then return end
+    FreeCamGui = Instance.new("ScreenGui")
+    FreeCamGui.Name = "FreeCamControls"
+    FreeCamGui.ResetOnSpawn = false
+    FreeCamGui.IgnoreGuiInset = true
+    FreeCamGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    TeleportButton = Instance.new("TextButton")
+    TeleportButton.Name = "TeleportButton"
+    TeleportButton.AnchorPoint = Vector2.new(0.5, 1)
+    TeleportButton.Position = UDim2.new(0.5, 0, 1, -40)
+    TeleportButton.Size = UDim2.new(0, 100, 0, 22)
+    TeleportButton.BackgroundTransparency = 1
+    TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TeleportButton.Text = "TELEPORTAR"
+    TeleportButton.TextScaled = true
+    TeleportButton.Font = Enum.Font.GothamBold
+    TeleportButton.AutoButtonColor = false
+    TeleportButton.Parent = FreeCamGui
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(0, 0, 0)
+    stroke.Transparency = 0.4
+    stroke.Thickness = 1.2
+    stroke.Parent = TeleportButton
+
+    TeleportButton.MouseButton1Down:Connect(function()
+        TeleportButton.TextColor3 = Color3.fromRGB(80, 170, 255)
+    end)
+    TeleportButton.MouseButton1Up:Connect(function()
+        TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+    TeleportButton.MouseButton1Click:Connect(TeleportToLook)
+end
+
+local function DestroyFreeCamGui()
+    if FreeCamGui then
+        FreeCamGui:Destroy()
+        FreeCamGui = nil
+        TeleportButton = nil
+    end
+end
+
+local function StartFreeCam()
+    if Enabled then return end
+    Enabled = true
+
+    Camera.CameraType = Enum.CameraType.Scriptable
+
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.Anchored = true
+    end
+
+    local _, y, _ = Camera.CFrame:ToEulerAnglesXYZ()
+    Yaw = math.deg(y)
+    Pitch = 0
+
+    if UserInputService.MouseEnabled then
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+    end
+
+    CreateFreeCamGui()
+
+    if UserInputService.TouchEnabled then
+        InputBeganConn = UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch and not LookTouch then
+                if IsInLookZone(input) then
+                    LookTouch = input
+                    LastTouchPos = input.Position
+                end
+            end
+        end)
+
+        InputChangedConn = UserInputService.InputChanged:Connect(function(input)
+            if input == LookTouch and input.UserInputType == Enum.UserInputType.Touch then
+                local delta = input.Position - LastTouchPos
+                LastTouchPos = input.Position
+                Yaw -= delta.X * TouchSensitivity
+                Pitch = math.clamp(Pitch - delta.Y * TouchSensitivity, -89, 89)
+            end
+        end)
+
+        InputEndedConn = UserInputService.InputEnded:Connect(function(input)
+            if input == LookTouch then
+                LookTouch = nil
+                LastTouchPos = nil
+            end
+        end)
+    end
+
+    Connection = RunService.RenderStepped:Connect(function(dt)
+        if not Enabled then return end
+
+        local move = Vector3.new()
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move -= Vector3.new(0, 1, 0) end
+
+        local hum = char and char:FindFirstChild("Humanoid")
+        if hum then
+            local md = hum.MoveDirection
+            if md.Magnitude > 0.08 then
+                local flatLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z)
+                local flatRight = Vector3.new(Camera.CFrame.RightVector.X, 0, Camera.CFrame.RightVector.Z)
+                if flatLook.Magnitude > 0.001 then flatLook = flatLook.Unit end
+                if flatRight.Magnitude > 0.001 then flatRight = flatRight.Unit end
+
+                local forwardAmount = md:Dot(flatLook)
+                local rightAmount = md:Dot(flatRight)
+
+                move += Camera.CFrame.LookVector * forwardAmount
+                move += Camera.CFrame.RightVector * rightAmount
+            end
+        end
+
+        if move.Magnitude > 0.05 then
+            Camera.CFrame += move.Unit * Speed * dt
+        end
+
+        if UserInputService.MouseEnabled then
+            local delta = UserInputService:GetMouseDelta()
+            if delta.Magnitude > 0.3 then
+                Yaw -= delta.X * Sensitivity
+                Pitch = math.clamp(Pitch - delta.Y * Sensitivity, -89, 89)
+            end
+        end
+
+        local pos = Camera.CFrame.Position
+        Camera.CFrame = CFrame.new(pos)
+            * CFrame.Angles(0, math.rad(Yaw), 0)
+            * CFrame.Angles(math.rad(Pitch), 0, 0)
+    end)
+end
+
+local function StopFreeCam()
+    Enabled = false
+    if Connection then Connection:Disconnect() Connection = nil end
+
+    if InputBeganConn then InputBeganConn:Disconnect() InputBeganConn = nil end
+    if InputChangedConn then InputChangedConn:Disconnect() InputChangedConn = nil end
+    if InputEndedConn then InputEndedConn:Disconnect() InputEndedConn = nil end
+
+    LookTouch = nil
+    LastTouchPos = nil
+
+    DestroyFreeCamGui()
+
+    Camera.CameraType = Enum.CameraType.Custom
+
+    if UserInputService.MouseEnabled then
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    end
+
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.Anchored = false
+    end
+end
 
 AddToggle(Jogador, {
-    Name = "Click Fling",
+    Name = "Câmera Livre",
     Default = false,
-    Callback = function(state)
-        clickFlingAtivo = state
+    Callback = function(v)
+        if v then StartFreeCam() else StopFreeCam() end
     end
+})
+
+AddSlider(Jogador, {
+    Name = "Velocidade da Câmera",
+    MinValue = 20,
+    MaxValue = 900,
+    Default = 85,
+    Callback = function(v) Speed = v end
 })
 
 local Players = game:GetService("Players")
