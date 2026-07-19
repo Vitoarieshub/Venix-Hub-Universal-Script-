@@ -964,3 +964,587 @@ AddToggle(Visuais, {
         end
     end
 })
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local trackedPlayers = {}
+local antiFlingEnabled = false
+
+local function setCollide(part, state)
+    if part:IsA("BasePart") then
+        part.CanCollide = state
+    end
+end
+
+local function trackCharacter(character)
+    for _, part in pairs(character:GetChildren()) do
+        setCollide(part, not antiFlingEnabled)
+    end
+    character.ChildAdded:Connect(function(child)
+        setCollide(child, not antiFlingEnabled)
+    end)
+end
+
+local function trackPlayer(player)
+    if player == localPlayer then return end
+    if player.Character then
+        trackCharacter(player.Character)
+    end
+    player.CharacterAdded:Connect(trackCharacter)
+    trackedPlayers[player] = true
+end
+
+local function applyState(state)
+    for player in pairs(trackedPlayers) do
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetChildren()) do
+                setCollide(part, state)
+            end
+        end
+    end
+end
+
+local function enableTracking()
+    for _, player in pairs(Players:GetPlayers()) do
+        trackPlayer(player)
+    end
+    Players.PlayerAdded:Connect(trackPlayer)
+    RunService.RenderStepped:Connect(function()
+        if antiFlingEnabled then
+            for player in pairs(trackedPlayers) do
+                local character = player.Character
+                if character then
+                    for _, part in pairs(character:GetChildren()) do
+                        setCollide(part, false)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+AddToggle(Config, {
+    Name = "Anti Arremesso",
+    Default = false,
+    Callback = function(state)
+        antiFlingEnabled = state
+        if antiFlingEnabled then
+            if next(trackedPlayers) == nil then
+                enableTracking()
+            end
+        else
+            applyState(true)
+        end
+    end
+})
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local zoomInfinitoAtivo = false
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if zoomInfinitoAtivo then
+        task.wait(0.5)
+        LocalPlayer.CameraMaxZoomDistance = math.huge
+    end
+end)
+
+AddToggle(Config, {
+    Name = "Zoom Infinito",
+    Default = false,
+    Callback = function(state)
+        zoomInfinitoAtivo = state
+        if state then
+            LocalPlayer.CameraMaxZoomDistance = math.huge
+        else
+            LocalPlayer.CameraMaxZoomDistance = 128
+        end
+    end
+})
+
+
+local Workspace = game:GetService("Workspace")
+local storedTransparency = {}
+
+local function setXRay(state)
+    if state then
+        for _, part in ipairs(Workspace:GetDescendants()) do
+            if part:IsA("BasePart") and part.Transparency < 0.5 then
+                storedTransparency[part] = part.Transparency
+                part.Transparency = 0.7
+            end
+        end
+    else
+        for part, t in pairs(storedTransparency) do
+            if part and part:IsA("BasePart") then
+                part.Transparency = t
+            end
+        end
+        storedTransparency = {}
+    end
+end
+
+AddToggle(Config, {
+    Name = "Raio X",
+    Default = false,
+    Callback = function(state)
+        setXRay(state)
+    end
+})
+
+AddButton(Config, {
+    Name = "Aumento de FPS",
+    Callback = function()
+        pcall(function()
+            local descendants = workspace:GetDescendants()
+            for i = 1, #descendants do
+                local v = descendants[i]
+                if v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+                    v.Material = Enum.Material.SmoothPlastic
+                    v.Reflectance = 0
+                    v.CastShadow = false
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v.Transparency = 1
+                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") then
+                    v:Destroy()
+                end
+            end
+
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+                workspace.GlobalShadows = false 
+
+                local lighting = game:GetService("Lighting")
+                if lighting then
+                    lighting.FogEnd = 1e10 
+                    lighting.GlobalShadows = false
+                    lighting.Brightness = 2
+                    
+                    local effects = lighting:GetChildren()
+                    for i = 1, #effects do
+                        local effect = effects[i]
+                        if effect:IsA("PostEffect") or effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
+                            effect:Destroy()
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+})
+
+
+local Lighting = game:GetService("Lighting")  
+
+local originalSettings = {
+    Brightness = Lighting.Brightness,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows
+}
+
+local active = false
+local connections = {}
+
+local function clear()
+    for i = 1, #connections do
+        if connections[i] then connections[i]:Disconnect() end
+    end
+    connections = {}
+end
+
+local function enableMorningLight()
+    active = true
+    clear()
+
+    Lighting.Brightness = 1.5
+    Lighting.Ambient = Color3.fromRGB(180, 180, 160) 
+    Lighting.OutdoorAmbient = Color3.fromRGB(200, 200, 170)
+    Lighting.ClockTime = 7 
+    Lighting.FogEnd = 1e9
+    Lighting.GlobalShadows = true
+
+    local props = {
+        ClockTime = 7,
+        Ambient = Color3.fromRGB(180, 180, 160),
+        OutdoorAmbient = Color3.fromRGB(200, 200, 170),
+        Brightness = 1.5,
+        GlobalShadows = true,
+        FogEnd = 1e9
+    }
+
+    for prop, value in pairs(props) do
+        local conn = Lighting:GetPropertyChangedSignal(prop):Connect(function()
+            if active then Lighting[prop] = value end
+        end)
+        table.insert(connections, conn)
+    end
+end
+
+local function disableMorningLight()
+    active = false
+    clear()
+
+    for prop, value in pairs(originalSettings) do
+        pcall(function() Lighting[prop] = value end)
+    end
+end
+
+AddToggle(Config, {
+    Name = "Sempre Dia",
+    Default = false,
+    Callback = functstatetate) 
+        if state then enableMorningLight() else disableMorningLight() end
+    end
+})
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local AimbotEnabled = false
+local ShowFOVCircle = false
+local WallCheckEnabled = false
+local CrosshairEnabled = false
+local AimbotConnection = nil
+local FOVRadius = 100
+local AimbotTargetPart = "Head"
+
+local PartMapping = {
+    ["Cabeça"] = "Head",
+    ["Tronco"] = "UpperTorso"
+}
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Thickness = 2
+FOVCircle.Filled = false
+FOVCircle.Visible = false
+FOVCircle.Radius = FOVRadius
+
+local CrosshairL1 = Drawing.new("Line")
+local CrosshairL2 = Drawing.new("Line")
+
+local function isLookingAtPlayer()
+    local viewportCenter = Camera.ViewportSize / 2
+    local unitRay = Camera:ViewportPointToRay(viewportCenter.X, viewportCenter.Y)
+    
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character}
+    
+    local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, params)
+    
+    if result and result.Instance then
+        local hit = result.Instance
+        local char = hit.Parent:FindFirstChildOfClass("Humanoid") and hit.Parent or hit.Parent.Parent:FindFirstChildOfClass("Humanoid") and hit.Parent.Parent
+        if char then
+            local player = Players:GetPlayerFromCharacter(char)
+            if player and player ~= LocalPlayer then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function updateCrosshair()
+    if CrosshairEnabled then
+        local center = Camera.ViewportSize / 2
+        local size = 10
+        local isOver = isLookingAtPlayer()
+        local color = isOver and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 255, 255)
+        
+        CrosshairL1.Visible = true
+        CrosshairL1.From = Vector2.new(center.X - size, center.Y)
+        CrosshairL1.To = Vector2.new(center.X + size, center.Y)
+        CrosshairL1.Color = color
+        CrosshairL1.Thickness = 2
+
+        CrosshairL2.Visible = true
+        CrosshairL2.From = Vector2.new(center.X, center.Y - size)
+        CrosshairL2.To = Vector2.new(center.X, center.Y + size)
+        CrosshairL2.Color = color
+        CrosshairL2.Thickness = 2
+    else
+        CrosshairL1.Visible = false
+        CrosshairL2.Visible = false
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local screenSize = Camera.ViewportSize
+    FOVCircle.Position = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
+    FOVCircle.Visible = AimbotEnabled and ShowFOVCircle
+    updateCrosshair()
+end)
+
+local function isVisible(part)
+    if not WallCheckEnabled then return true end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character, part.Parent}
+    local result = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * (part.Position - Camera.CFrame.Position).Magnitude, params)
+    return result == nil
+end
+
+local function getTargetPart(character, partName)
+    if partName == "Head" then
+        return character:FindFirstChild("Head")
+    elseif partName == "UpperTorso" then
+        return character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+    elseif partName == "HumanoidRootPart" then
+        return character:FindFirstChild("HumanoidRootPart")
+    end
+    return character:FindFirstChild("Head")
+end
+
+local function getClosestPlayerToFOV()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= LocalPlayer and otherPlayer.Character then
+            local part = getTargetPart(otherPlayer.Character, AimbotTargetPart)
+            if part and isVisible(part) then
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - FOVCircle.Position).Magnitude
+                    if dist < FOVCircle.Radius and dist < shortestDistance then
+                        shortestDistance = dist
+                        closestPlayer = otherPlayer
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+AddToggle(Combate, {
+    Name = "Aimbot",
+    Default = false,
+    Callback = function(Value)
+        AimbotEnabled = Value
+        if Value and not AimbotConnection then
+            AimbotConnection = RunService.RenderStepped:Connect(function()
+                local target = getClosestPlayerToFOV()
+                if target and target.Character then
+                    local part = getTargetPart(target.Character, AimbotTargetPart)
+                    if part then
+                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, part.Position)
+                    end
+                end
+            end)
+        elseif not Value and AimbotConnection then
+            AimbotConnection:Disconnect()
+            AimbotConnection = nil
+        end
+    end
+})
+
+AddDropdown(Combate, {
+    Name = "Mirar em:",
+    Options = {"Cabeça", "Tronco"},
+    Default = "Cabeça",
+    Callback = function(Value)
+        AimbotTargetPart = PartMapping[Value] or "Head"
+    end
+})
+
+AddToggle(Combate, {
+    Name = "Mostrar Círculo",
+    Default = false,
+    Callback = function(Value)
+        ShowFOVCircle = Value
+    end
+})
+
+AddSlider(Combate, {
+    Name = "Tamanho do Círculo",
+    MinValue = 20,
+    MaxValue = 500,
+    Default = FOVRadius,
+    Increase = 5,
+    Callback = function(Value)
+        FOVRadius = Value
+        FOVCircle.Radius = FOVRadius
+    end
+})
+
+AddToggle(Combate, {
+    Name = "Verificar Visíveis",
+    Default = false,
+    Callback = function(Value)
+        WallCheckEnabled = Value
+    end
+})
+
+AddToggle(Combate, {
+    Name = "Mira",
+    Default = false,
+    Callback = function(Value)
+        CrosshairEnabled = Value
+    end
+})
+
+local HitboxEnabled = false
+local HitboxSize = 5
+local HitboxConnection = nil
+local TurquoiseColor = Color3.fromRGB(64, 224, 208)
+
+local function expandHitbox()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            hrp.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+            hrp.Transparency = 0.6
+            hrp.Color = TurquoiseColor
+            hrp.Material = Enum.Material.Neon
+            hrp.CanCollide = false
+        end
+    end
+end
+
+local function resetHitbox()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            hrp.Size = Vector3.new(2, 2, 1)
+            hrp.Transparency = 1
+            hrp.CanCollide = true
+        end
+    end
+end
+
+AddToggle(Combate, {
+    Name = "Hitbox",
+    Default = false,
+    Callback = function(Value)
+        HitboxEnabled = Value
+        if Value then
+            HitboxConnection = RunService.RenderStepped:Connect(expandHitbox)
+        else
+            if HitboxConnection then
+                HitboxConnection:Disconnect()
+                HitboxConnection = nil
+            end
+            resetHitbox()
+        end
+    end
+})
+
+AddSlider(Combate, {
+    Name = "Tamanho da Hitbox",
+    MinValue = 2,
+    MaxValue = 20,
+    Default = HitboxSize,
+    Increase = 1,
+    Callback = function(Value)
+        HitboxSize = Value
+    end
+})
+
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local notificacaoAtivada = false
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NotifierGUI"
+ScreenGui.Parent = game.CoreGui
+
+local function notify(title, text)
+    if not notificacaoAtivada then return end
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 280, 0, 80)
+    Frame.Position = UDim2.new(1, 20, 1, -150)
+    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = ScreenGui
+    Frame.Visible = false
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 12)
+    UICorner.Parent = Frame
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Thickness = 2
+    UIStroke.Color = Color3.fromRGB(40, 40, 40)
+    UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    UIStroke.Parent = Frame
+
+    local Shadow = Instance.new("ImageLabel")
+    Shadow.Size = UDim2.new(1, 20, 1, 20)
+    Shadow.Position = UDim2.new(0, -10, 0, -10)
+    Shadow.BackgroundTransparency = 1
+    Shadow.Image = "rbxassetid://5028857084"
+    Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    Shadow.ImageTransparency = 0.4
+    Shadow.ScaleType = Enum.ScaleType.Slice
+    Shadow.SliceCenter = Rect.new(24, 24, 276, 276)
+    Shadow.Parent = Frame
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, -20, 0, 25)
+    TitleLabel.Position = UDim2.new(0, 10, 0, 5)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 20
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Parent = Frame
+
+    local MessageLabel = Instance.new("TextLabel")
+    MessageLabel.Size = UDim2.new(1, -20, 0, 40)
+    MessageLabel.Position = UDim2.new(0, 10, 0, 35)
+    MessageLabel.BackgroundTransparency = 1
+    MessageLabel.Text = text
+    MessageLabel.Font = Enum.Font.Gotham
+    MessageLabel.TextSize = 16
+    MessageLabel.TextWrapped = true
+    MessageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    MessageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    MessageLabel.TextYAlignment = Enum.TextYAlignment.Top
+    MessageLabel.Parent = Frame
+
+    Frame.Visible = true
+    TweenService:Create(Frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -300, 1, -150)
+    }):Play()
+
+    task.delay(4, function()
+        TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 20, 1, -150)
+        }):Play()
+        task.wait(0.5)
+        Frame:Destroy()
+    end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    notify("Player", player.Name .." Entrou no jogo!")
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    notify("Player", player.Name .. " Abandonou o jogo.")
+end)
+
+AddToggle(Config, {
+    Name = "Notificações do jogadores",
+    Default = false,
+    Callback = function(Value)
+        notificacaoAtivada = Value
+    end
+})
+
