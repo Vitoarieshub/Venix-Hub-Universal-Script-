@@ -656,3 +656,82 @@ AddToggle(Jogador, {
         clickFlingAtivo = state
     end
 })
+
+local savedPositions = {
+    ["Posição 1"] = nil,
+    ["Posição 2"] = nil
+}
+
+local slotSelecionado = "Posição 1"
+local teleporteSuaveAtivado = false
+local TEMPO_FIXO = 7
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+AddDropdown(Teleportes, {
+    Name = "Selecionar Posição",
+    Options = {"Posição 1", "Posição 2"},
+    Default = "Posição 1",
+    Callback = function(opcaoSelecionada)
+        slotSelecionado = opcaoSelecionada
+    end
+})
+
+AddButton(Teleportes, {
+    Name = "Salvar posição",
+    Callback = function()
+        pcall(function()
+            local hrp = Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+            savedPositions[slotSelecionado] = hrp.CFrame
+        end)
+    end
+})
+
+AddButton(Teleportes, {
+    Name = "Teleportar para posição",
+    Callback = function()
+        pcall(function()
+            local cframeAlvo = savedPositions[slotSelecionado]
+            
+            if cframeAlvo then
+                local character = Players.LocalPlayer.Character
+                local hrp = character:WaitForChild("HumanoidRootPart")
+                
+                if teleporteSuaveAtivado then
+                    local posicaoInicial = hrp.Position
+                    local posicaoFinal = cframeAlvo.Position
+                    local tempoDecorrido = 0
+                    
+                    local conexao
+                    conexao = RunService.Heartbeat:Connect(function(dt)
+                        if not character or not hrp:IsDescendantOf(game) then
+                            conexao:Disconnect()
+                            return
+                        end
+                        
+                        tempoDecorrido = tempoDecorrido + dt
+                        local alfa = math.clamp(tempoDecorrido / TEMPO_FIXO, 0, 1)
+                        
+                        hrp.Velocity = Vector3.new(0, 0, 0)
+                        hrp.CFrame = CFrame.new(posicaoInicial:Lerp(posicaoFinal, alfa)) * (cframeAlvo - cframeAlvo.Position)
+                        
+                        if alfa >= 1 then
+                            conexao:Disconnect()
+                        end
+                    end)
+                else
+                    hrp.CFrame = cframeAlvo
+                end
+            end
+        end)
+    end
+})
+
+AddToggle(Teleportes, {
+    Name = "Teleporte Suave",
+    Default = false,
+    Callback = function(estado)
+        teleporteSuaveAtivado = estado
+    end
+})
