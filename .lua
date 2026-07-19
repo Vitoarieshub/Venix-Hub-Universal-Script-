@@ -54,6 +54,7 @@ MinimizeButton({
 
 local Jogador = MakeTab({Name = "Jogador"})
 local Visuais = MakeTab({Name = "Visual"})
+local Troll = MakeTab({Name = "Troll"})
 local Teleportes = MakeTab({Name = "Teleportes"})
 local Combate = MakeTab({Name = "Combate"})
 local Config = MakeTab({Name = "Config"})
