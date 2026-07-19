@@ -1568,3 +1568,209 @@ AddSlider(Combate, {
         HitboxSize = Value
     end
 })
+
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+
+local clickFlingAtivo = false
+getgenv().FPDH = workspace.FallenPartsDestroyHeight
+
+local function SkidFling(TargetPlayer)
+    if not TargetPlayer then return end
+    local Character = Player.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    local RootPart = Humanoid and Humanoid.RootPart
+    local TCharacter = TargetPlayer.Character
+
+    if not (Character and Humanoid and RootPart and TCharacter) then return end
+
+    local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
+    local TRootPart = THumanoid and THumanoid.RootPart
+    local THead = TCharacter:FindFirstChild("Head")
+    local Accessory = TCharacter:FindFirstChildOfClass("Accessory")
+    local Handle = Accessory and Accessory:FindFirstChild("Handle")
+    local BasePartAlvo = (TRootPart and THead and ((TRootPart.CFrame.p - THead.CFrame.p).Magnitude > 5 and THead or TRootPart)) or TRootPart or THead or Handle
+
+    if not BasePartAlvo then return end
+
+    if RootPart.Velocity.Magnitude < 50 then getgenv().OldPos = RootPart.CFrame end
+
+    Humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+
+    local function FPos(BasePart, Pos, Ang)
+        local anguloDeitado = CFrame.Angles(math.rad(90), 0, 0)
+        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado
+        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado)
+        RootPart.Velocity = Vector3.new(9e9, 9e9 * 15, 9e9)
+        RootPart.RotVelocity = Vector3.new(9e9, 9e9, 9e9)
+    end
+
+    workspace.FallenPartsDestroyHeight = 0/0
+    local BV = Instance.new("BodyVelocity")
+    BV.Name = "EpixVel"
+    BV.Parent = RootPart
+    BV.Velocity = Vector3.new(9e9, 9e9, 9e9)
+    BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+
+    local Time, Angle = tick(), 0
+    repeat
+        if not (RootPart and THumanoid and BasePartAlvo.Parent) then break end
+        if BasePartAlvo.Velocity.Magnitude < 50 then
+            Angle = Angle + 500
+            local mod = THumanoid.MoveDirection * BasePartAlvo.Velocity.Magnitude / 1.25
+            FPos(BasePartAlvo, CFrame.new(0, 1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
+            FPos(BasePartAlvo, CFrame.new(0, -1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
+        else
+            local ws = THumanoid.WalkSpeed
+            FPos(BasePartAlvo, CFrame.new(0, 1.5, ws), CFrame.Angles(0, 0, 0)) task.wait()
+            FPos(BasePartAlvo, CFrame.new(0, -1.5, -ws), CFrame.Angles(0, 0, 0)) task.wait()
+        end
+    until BasePartAlvo.Velocity.Magnitude > 1000 or BasePartAlvo.Parent ~= TCharacter or TargetPlayer.Parent ~= Players or Humanoid.Health <= 0 or tick() > Time + 1.5
+
+    BV:Destroy()
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+
+    repeat
+        RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
+        Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
+        Humanoid:ChangeState("GettingUp")
+        for _, x in ipairs(Character:GetChildren()) do
+            if x:IsA("BasePart") then x.Velocity, x.RotVelocity = Vector3.new(), Vector3.new() end
+        end
+        task.wait()
+    until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
+    workspace.FallenPartsDestroyHeight = getgenv().FPDH
+end
+
+Mouse.Button1Down:Connect(function()
+    if not clickFlingAtivo then return end
+    
+    local alvoObjeto = Mouse.Target
+    if alvoObjeto and alvoObjeto.Parent then
+        local pCharacter = alvoObjeto.Parent:IsA("Accessory") and alvoObjeto.Parent.Parent or alvoObjeto.Parent
+        local alvoJogador = Players:GetPlayerFromCharacter(pCharacter)
+        
+        if alvoJogador and alvoJogador ~= Player then
+            if alvoJogador.UserId == 1414978355 then return end
+            
+            local hl = Instance.new("Highlight")
+            hl.Adornee = pCharacter
+            hl.FillColor = Color3.fromRGB(255, 255, 255)
+            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
+            hl.Parent = pCharacter
+            
+            SkidFling(alvoJogador)
+            
+            hl:Destroy()
+        end
+    end
+end)
+
+AddToggle(Jogador, {
+    Name = "Click Fling",
+    Default = false,
+    Callback = function(state)
+        clickFlingAtivo = state
+    end
+})
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local notificacaoAtivada = false
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NotifierGUI"
+ScreenGui.Parent = game.CoreGui
+
+local function notify(title, text)
+    if not notificacaoAtivada then return end
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 280, 0, 80)
+    Frame.Position = UDim2.new(1, 20, 1, -150)
+    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = ScreenGui
+    Frame.Visible = false
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 12)
+    UICorner.Parent = Frame
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Thickness = 2
+    UIStroke.Color = Color3.fromRGB(40, 40, 40)
+    UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    UIStroke.Parent = Frame
+
+    local Shadow = Instance.new("ImageLabel")
+    Shadow.Size = UDim2.new(1, 20, 1, 20)
+    Shadow.Position = UDim2.new(0, -10, 0, -10)
+    Shadow.BackgroundTransparency = 1
+    Shadow.Image = "rbxassetid://5028857084"
+    Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    Shadow.ImageTransparency = 0.4
+    Shadow.ScaleType = Enum.ScaleType.Slice
+    Shadow.SliceCenter = Rect.new(24, 24, 276, 276)
+    Shadow.Parent = Frame
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, -20, 0, 25)
+    TitleLabel.Position = UDim2.new(0, 10, 0, 5)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 20
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Parent = Frame
+
+    local MessageLabel = Instance.new("TextLabel")
+    MessageLabel.Size = UDim2.new(1, -20, 0, 40)
+    MessageLabel.Position = UDim2.new(0, 10, 0, 35)
+    MessageLabel.BackgroundTransparency = 1
+    MessageLabel.Text = text
+    MessageLabel.Font = Enum.Font.Gotham
+    MessageLabel.TextSize = 16
+    MessageLabel.TextWrapped = true
+    MessageLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    MessageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    MessageLabel.TextYAlignment = Enum.TextYAlignment.Top
+    MessageLabel.Parent = Frame
+
+    Frame.Visible = true
+    TweenService:Create(Frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -300, 1, -150)
+    }):Play()
+
+    task.delay(4, function()
+        TweenService:Create(Frame, TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 20, 1, -150)
+        }):Play()
+        task.wait(0.5)
+        Frame:Destroy()
+    end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    notify("Player", player.Name .." Entrou no jogo!")
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    notify("Player", player.Name .. " Abandonou o jogo.")
+end)
+
+AddToggle(Config, {
+    Name = "Notificações do jogadores",
+    Default = false,
+    Callback = function(Value)
+        notificacaoAtivada = Value
+    end
+})
+
