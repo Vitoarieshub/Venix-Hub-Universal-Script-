@@ -766,7 +766,7 @@ local function StopFreeCam()
     end
 end
 
-AddToggle(Jogador, {
+AddToggle(Trollar, {
     Name = "Câmera Livre",
     Default = false,
     Callback = function(v)
@@ -774,7 +774,7 @@ AddToggle(Jogador, {
     end
 })
 
-AddSlider(Jogador, {
+AddSlider(Trollar, {
     Name = "Velocidade da Câmera",
     MinValue = 20,
     MaxValue = 900,
