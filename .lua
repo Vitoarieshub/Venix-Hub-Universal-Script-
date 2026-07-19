@@ -545,3 +545,107 @@ AddButton(Jogador, {
         end)
     end
 }) 
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+
+local loopConexao = nil
+local voando = false
+local bV = nil
+local bBG = nil
+
+local function ObterAlvoFisico()
+    local Character = localPlayer.Character
+    if not Character then return nil end
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    
+    if Humanoid and Humanoid.SeatPart then
+        return Humanoid.SeatPart
+    end
+    return Character:FindFirstChild("HumanoidRootPart")
+end
+
+local function ForcarDesancorarPecas(alvo)
+    if not alvo then return end
+    local rootModel = alvo:FindFirstAncestorOfClass("Model") or alvo
+    for _, part in ipairs(rootModel:GetDescendants()) do
+        if part:IsA("BasePart") and part.Anchored then
+            part.Anchored = false
+        end
+    end
+end
+
+local function DesativarVoo()
+    voando = false
+    if bV then bV:Destroy() bV = nil end
+    if bBG then bBG:Destroy() bBG = nil end
+    if loopConexao then loopConexao:Disconnect() loopConexao = nil end
+    
+    local alvo = ObterAlvoFisico()
+    if alvo then
+        alvo.AssemblyLinearVelocity = Vector3.zero
+        alvo.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+local function VoarComVeiculo()
+    DesativarVoo()
+    voando = true
+    
+    local alvo = ObterAlvoFisico()
+    if not alvo then return end
+    ForcarDesancorarPecas(alvo)
+    
+    bV = Instance.new("BodyVelocity")
+    bV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bV.Velocity = Vector3.new(0, 4, 0)
+    bV.Parent = alvo
+
+    bBG = Instance.new("BodyGyro")
+    bBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bBG.P = 5000
+    bBG.D = 500
+    bBG.CFrame = alvo.CFrame
+    bBG.Parent = alvo
+    
+    loopConexao = RunService.Heartbeat:Connect(function()
+        if not voando or not alvo or not alvo.Parent then 
+            DesativarVoo()
+            return 
+        end
+        
+        local numVel = 130
+        local cam = workspace.CurrentCamera
+        local humanoid = localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoid and humanoid.MoveDirection.Magnitude > 0 then
+            local direcaoMovimento = humanoid.MoveDirection
+            
+            if direcaoMovimento:Dot(cam.CFrame.LookVector) > 0.4 then
+                bV.Velocity = cam.CFrame.LookVector * numVel
+                local _, camYaw, _ = cam.CFrame:ToEulerAnglesYXZ()
+                bBG.CFrame = CFrame.Angles(0, camYaw, 0)
+            else
+                bV.Velocity = direcaoMovimento * numVel
+            end
+        else
+            bV.Velocity = Vector3.zero
+        end
+        
+        alvo.AssemblyLinearVelocity = Vector3.zero
+        alvo.AssemblyAngularVelocity = Vector3.zero
+    end)
+end
+
+AddToggle(Trollar, {
+    Name = "Voar com veículo",
+    Default = false,
+    Callback = function(state)
+        if state then
+            VoarComVeiculo()
+        else
+            DesativarVoo()
+        end
+    end
+})
