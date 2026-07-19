@@ -729,6 +729,20 @@ AddToggle(Teleportes, {
     end
 })
 
+AddButton(Teleportes, {
+    Name = "Copiar Posição",
+    Callback = function()
+        local jogador = game.Players.LocalPlayer
+        local hrp = jogador.Character and jogador.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local posicao = hrp.Position
+            local codigo = string.format("game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(%.2f, %.2f, %.2f))", posicao.X, posicao.Y, posicao.Z)
+            setclipboard(codigo)
+            print("Código copiado:", codigo)
+        end
+    end
+})
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
