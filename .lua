@@ -1547,4 +1547,3 @@ AddToggle(Config, {
         notificacaoAtivada = Value
     end
 })
-
