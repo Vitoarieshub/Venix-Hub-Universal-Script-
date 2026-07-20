@@ -547,6 +547,115 @@ AddButton(Trollar, {
 }) 
 
 local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+
+local clickFlingAtivo = false
+getgenv().FPDH = workspace.FallenPartsDestroyHeight
+
+local function SkidFling(TargetPlayer)
+    if not TargetPlayer then return end
+    local Character = Player.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    local RootPart = Humanoid and Humanoid.RootPart
+    local TCharacter = TargetPlayer.Character
+
+    if not (Character and Humanoid and RootPart and TCharacter) then return end
+
+    local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
+    local TRootPart = THumanoid and THumanoid.RootPart
+    local THead = TCharacter:FindFirstChild("Head")
+    local Accessory = TCharacter:FindFirstChildOfClass("Accessory")
+    local Handle = Accessory and Accessory:FindFirstChild("Handle")
+    local BasePartAlvo = (TRootPart and THead and ((TRootPart.CFrame.p - THead.CFrame.p).Magnitude > 5 and THead or TRootPart)) or TRootPart or THead or Handle
+
+    if not BasePartAlvo then return end
+
+    if RootPart.Velocity.Magnitude < 50 then getgenv().OldPos = RootPart.CFrame end
+
+    Humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+
+    local function FPos(BasePart, Pos, Ang)
+        local anguloDeitado = CFrame.Angles(math.rad(90), 0, 0)
+        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado
+        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado)
+        RootPart.Velocity = Vector3.new(9e9, 9e9 * 15, 9e9)
+        RootPart.RotVelocity = Vector3.new(9e9, 9e9, 9e9)
+    end
+
+    workspace.FallenPartsDestroyHeight = 0/0
+    local BV = Instance.new("BodyVelocity")
+    BV.Name = "EpixVel"
+    BV.Parent = RootPart
+    BV.Velocity = Vector3.new(9e9, 9e9, 9e9)
+    BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+
+    local Time, Angle = tick(), 0
+    repeat
+        if not (RootPart and THumanoid and BasePartAlvo.Parent) then break end
+        if BasePartAlvo.Velocity.Magnitude < 50 then
+            Angle = Angle + 500
+            local mod = THumanoid.MoveDirection * BasePartAlvo.Velocity.Magnitude / 1.25
+            FPos(BasePartAlvo, CFrame.new(0, 1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
+            FPos(BasePartAlvo, CFrame.new(0, -1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
+        else
+            local ws = THumanoid.WalkSpeed
+            FPos(BasePartAlvo, CFrame.new(0, 1.5, ws), CFrame.Angles(0, 0, 0)) task.wait()
+            FPos(BasePartAlvo, CFrame.new(0, -1.5, -ws), CFrame.Angles(0, 0, 0)) task.wait()
+        end
+    until BasePartAlvo.Velocity.Magnitude > 1000 or BasePartAlvo.Parent ~= TCharacter or TargetPlayer.Parent ~= Players or Humanoid.Health <= 0 or tick() > Time + 1.5
+
+    BV:Destroy()
+    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+
+    repeat
+        RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
+        Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
+        Humanoid:ChangeState("GettingUp")
+        for _, x in ipairs(Character:GetChildren()) do
+            if x:IsA("BasePart") then x.Velocity, x.RotVelocity = Vector3.new(), Vector3.new() end
+        end
+        task.wait()
+    until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
+    workspace.FallenPartsDestroyHeight = getgenv().FPDH
+end
+
+Mouse.Button1Down:Connect(function()
+    if not clickFlingAtivo then return end
+    
+    local alvoObjeto = Mouse.Target
+    if alvoObjeto and alvoObjeto.Parent then
+        local pCharacter = alvoObjeto.Parent:IsA("Accessory") and alvoObjeto.Parent.Parent or alvoObjeto.Parent
+        local alvoJogador = Players:GetPlayerFromCharacter(pCharacter)
+        
+        if alvoJogador and alvoJogador ~= Player then
+            if alvoJogador.UserId == 1414978355 then return end
+            
+            local hl = Instance.new("Highlight")
+            hl.Adornee = pCharacter
+            hl.FillColor = Color3.fromRGB(255, 255, 255)
+            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
+            hl.Parent = pCharacter
+            
+            SkidFling(alvoJogador)
+            
+            hl:Destroy()
+        end
+    end
+end)
+
+AddToggle(Trollar, {
+    Name = "Click Fling",
+    Default = false,
+    Callback = function(state)
+        clickFlingAtivo = state
+    end
+})
+
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1316,6 +1425,85 @@ AddToggle(Visuais, {
 })
 
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+
+local antiSeatEnabled = false
+local connections = {}
+local ignoreSeats = {}
+
+local function disableSeat(seat)
+	if not ignoreSeats[seat] then
+		ignoreSeats[seat] = seat.CanTouch
+		seat.CanTouch = false
+	end
+end
+
+local function preventSitting(character)
+	local humanoid = character:WaitForChild("Humanoid", 5)
+	if not humanoid then return end
+
+	if connections.Seated then connections.Seated:Disconnect() end
+
+	connections.Seated = humanoid.Seated:Connect(function(isSeated)
+		if isSeated and antiSeatEnabled then
+			humanoid.Sit = false
+		end
+	end)
+
+	if humanoid.Sit and antiSeatEnabled then
+		humanoid.Sit = false
+	end
+end
+
+local function restoreSeats()
+	for seat, originalCanTouch in pairs(ignoreSeats) do
+		if seat and seat:IsDescendantOf(Workspace) then
+			seat.CanTouch = originalCanTouch
+		end
+	end
+	table.clear(ignoreSeats)
+end
+
+AddToggle(Config, {
+	Name = "Anti Sentar",
+	Default = false,
+	Callback = function(Value)
+		antiSeatEnabled = Value
+
+		if Value then
+			if LocalPlayer.Character then
+				preventSitting(LocalPlayer.Character)
+			end
+			connections.Character = LocalPlayer.CharacterAdded:Connect(preventSitting)
+
+			for _, obj in ipairs(Workspace:GetDescendants()) do
+				if obj:IsA("Seat") or obj:IsA("VehicleSeat") then
+					disableSeat(obj)
+				end
+			end
+
+			connections.SeatWatcher = Workspace.DescendantAdded:Connect(function(desc)
+				if desc:IsA("Seat") or desc:IsA("VehicleSeat") then
+					task.wait(0.1)
+					if antiSeatEnabled and desc:IsDescendantOf(Workspace) then
+						disableSeat(desc)
+					end
+				end
+			end)
+		else
+			for key, connection in pairs(connections) do
+				connection:Disconnect()
+				connections[key] = nil
+			end
+
+			restoreSeats()
+		end
+	end
+})
+
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local localPlayer = Players.LocalPlayer
@@ -1816,116 +2004,6 @@ AddSlider(Combate, {
     Increase = 1,
     Callback = function(Value)
         HitboxSize = Value
-    end
-})
-
-
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local Mouse = Player:GetMouse()
-
-local clickFlingAtivo = false
-getgenv().FPDH = workspace.FallenPartsDestroyHeight
-
-local function SkidFling(TargetPlayer)
-    if not TargetPlayer then return end
-    local Character = Player.Character
-    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-    local RootPart = Humanoid and Humanoid.RootPart
-    local TCharacter = TargetPlayer.Character
-
-    if not (Character and Humanoid and RootPart and TCharacter) then return end
-
-    local THumanoid = TCharacter:FindFirstChildOfClass("Humanoid")
-    local TRootPart = THumanoid and THumanoid.RootPart
-    local THead = TCharacter:FindFirstChild("Head")
-    local Accessory = TCharacter:FindFirstChildOfClass("Accessory")
-    local Handle = Accessory and Accessory:FindFirstChild("Handle")
-    local BasePartAlvo = (TRootPart and THead and ((TRootPart.CFrame.p - THead.CFrame.p).Magnitude > 5 and THead or TRootPart)) or TRootPart or THead or Handle
-
-    if not BasePartAlvo then return end
-
-    if RootPart.Velocity.Magnitude < 50 then getgenv().OldPos = RootPart.CFrame end
-
-    Humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-
-    local function FPos(BasePart, Pos, Ang)
-        local anguloDeitado = CFrame.Angles(math.rad(90), 0, 0)
-        RootPart.CFrame = CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado
-        Character:SetPrimaryPartCFrame(CFrame.new(BasePart.Position) * Pos * Ang * anguloDeitado)
-        RootPart.Velocity = Vector3.new(9e9, 9e9 * 15, 9e9)
-        RootPart.RotVelocity = Vector3.new(9e9, 9e9, 9e9)
-    end
-
-    workspace.FallenPartsDestroyHeight = 0/0
-    local BV = Instance.new("BodyVelocity")
-    BV.Name = "EpixVel"
-    BV.Parent = RootPart
-    BV.Velocity = Vector3.new(9e9, 9e9, 9e9)
-    BV.MaxForce = Vector3.new(1/0, 1/0, 1/0)
-
-    local Time, Angle = tick(), 0
-    repeat
-        if not (RootPart and THumanoid and BasePartAlvo.Parent) then break end
-        if BasePartAlvo.Velocity.Magnitude < 50 then
-            Angle = Angle + 500
-            local mod = THumanoid.MoveDirection * BasePartAlvo.Velocity.Magnitude / 1.25
-            FPos(BasePartAlvo, CFrame.new(0, 1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
-            FPos(BasePartAlvo, CFrame.new(0, -1.5, 0) + mod, CFrame.Angles(0, math.rad(Angle), 0)) task.wait()
-        else
-            local ws = THumanoid.WalkSpeed
-            FPos(BasePartAlvo, CFrame.new(0, 1.5, ws), CFrame.Angles(0, 0, 0)) task.wait()
-            FPos(BasePartAlvo, CFrame.new(0, -1.5, -ws), CFrame.Angles(0, 0, 0)) task.wait()
-        end
-    until BasePartAlvo.Velocity.Magnitude > 1000 or BasePartAlvo.Parent ~= TCharacter or TargetPlayer.Parent ~= Players or Humanoid.Health <= 0 or tick() > Time + 1.5
-
-    BV:Destroy()
-    Humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
-
-    repeat
-        RootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
-        Character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
-        Humanoid:ChangeState("GettingUp")
-        for _, x in ipairs(Character:GetChildren()) do
-            if x:IsA("BasePart") then x.Velocity, x.RotVelocity = Vector3.new(), Vector3.new() end
-        end
-        task.wait()
-    until (RootPart.Position - getgenv().OldPos.p).Magnitude < 25
-    workspace.FallenPartsDestroyHeight = getgenv().FPDH
-end
-
-Mouse.Button1Down:Connect(function()
-    if not clickFlingAtivo then return end
-    
-    local alvoObjeto = Mouse.Target
-    if alvoObjeto and alvoObjeto.Parent then
-        local pCharacter = alvoObjeto.Parent:IsA("Accessory") and alvoObjeto.Parent.Parent or alvoObjeto.Parent
-        local alvoJogador = Players:GetPlayerFromCharacter(pCharacter)
-        
-        if alvoJogador and alvoJogador ~= Player then
-            if alvoJogador.UserId == 1414978355 then return end
-            
-            local hl = Instance.new("Highlight")
-            hl.Adornee = pCharacter
-            hl.FillColor = Color3.fromRGB(255, 255, 255)
-            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-            hl.FillTransparency = 0.5
-            hl.OutlineTransparency = 0
-            hl.Parent = pCharacter
-            
-            SkidFling(alvoJogador)
-            
-            hl:Destroy()
-        end
-    end
-end)
-
-AddToggle(Trollar, {
-    Name = "Click Fling",
-    Default = false,
-    Callback = function(state)
-        clickFlingAtivo = state
     end
 })
 
