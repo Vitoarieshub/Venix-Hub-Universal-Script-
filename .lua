@@ -995,6 +995,75 @@ AddToggle(Trollar, {
     end
 })
 
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+local clickTPAtivado = false
+local marcador = nil
+local mouseConnection = nil
+
+local function criarEsfera(pos)
+	if marcador then marcador:Destroy() end
+
+	marcador = Instance.new("Part")
+	marcador.Shape = Enum.PartType.Ball
+	marcador.Color = Color3.fromRGB(10, 10, 10)
+	marcador.Size = Vector3.new(1.5, 1.5, 1.5)
+	marcador.Anchored = true
+	marcador.CanCollide = false
+	marcador.Material = Enum.Material.Neon
+	marcador.Position = pos + Vector3.new(0, 0.75, 0)
+	marcador.Parent = Workspace
+
+	task.delay(3, function()
+		if marcador then
+			marcador:Destroy()
+			marcador = nil
+		end
+	end)
+end
+
+local function onClick()
+	if not clickTPAtivado then return end
+
+	local target = Mouse.Hit
+	if target then
+		local character = LocalPlayer.Character
+		local hrp = character and character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local destino = target.Position
+			hrp.CFrame = CFrame.new(destino + Vector3.new(0, 3, 0))
+			criarEsfera(destino)
+		end
+	end
+end
+
+AddToggle(Teleportes, {
+	Name = "Click tp",
+	Default = false,
+	Callback = function(Value)
+		clickTPAtivado = Value
+
+		if Value then
+			if not mouseConnection then
+				mouseConnection = Mouse.Button1Down:Connect(onClick)
+			end
+		else
+			if mouseConnection then
+				mouseConnection:Disconnect()
+				mouseConnection = nil
+			end
+			if marcador then
+				marcador:Destroy()
+				marcador = nil
+			end
+		end
+	end
+})
+
 local savedPositions = {
     ["Posição 1"] = nil,
     ["Posição 2"] = nil
