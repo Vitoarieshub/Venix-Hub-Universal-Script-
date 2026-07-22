@@ -59,6 +59,16 @@ local Teleportes = MakeTab({Name = "Teleportes"})
 local Combate = MakeTab({Name = "Combate"})
 local Config = MakeTab({Name = "Config"})
 
+AddButton(Jogador, {
+    Name = "Voar v6 ",
+    Callback = function()
+        print("Botão foi clicado!")
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/DragonUniversal/Fly-Gui-V6/refs/heads/main/Script.lua"))()
+        end)
+    end
+})
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
