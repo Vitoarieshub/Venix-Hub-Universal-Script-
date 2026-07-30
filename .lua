@@ -320,8 +320,14 @@ local GetPlayer = function(Name)
     return nil
 end
 
-local Message = function(_Title, _Text, Time)
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = _Title, Text = _Text, Duration = Time})
+local function Notify(text)
+    if MakeNotifi then
+        MakeNotifi({
+            Title = "Aviso",
+            Text = text,
+            Time = 4
+        })
+    end
 end
 
 local SkidFling = function(TargetPlayer)
@@ -343,9 +349,7 @@ local SkidFling = function(TargetPlayer)
     if RootPart.Velocity.Magnitude < 50 then
         getgenv().OldPos = RootPart.CFrame
     end
-    if THumanoid and THumanoid.Sit and not AllBool then
-        return Message("Erro", "O alvo está sentado", 5)
-    end
+
     if THead and not visualizando then
         workspace.CurrentCamera.CameraSubject = THead
     elseif not THead and Handle and not visualizando then
@@ -353,6 +357,7 @@ local SkidFling = function(TargetPlayer)
     elseif THumanoid and TRootPart and not visualizando then
         workspace.CurrentCamera.CameraSubject = THumanoid
     end
+
     if not TCharacter:FindFirstChildWhichIsA("BasePart") then
         return
     end
@@ -410,7 +415,7 @@ local SkidFling = function(TargetPlayer)
             else
                 break
             end
-        until BasePart.Velocity.Magnitude > 500 or BasePart.Parent ~= TargetPlayer.Character or TargetPlayer.Parent ~= Players or not TargetPlayer.Character == TCharacter or THumanoid.Sit or Humanoid.Health <= 0 or tick() > Time + TimeToWait
+        until BasePart.Velocity.Magnitude > 500 or BasePart.Parent ~= TargetPlayer.Character or TargetPlayer.Parent ~= Players or not TargetPlayer.Character == TCharacter or Humanoid.Health <= 0 or tick() > Time + TimeToWait
     end
     
     workspace.FallenPartsDestroyHeight = 0/0
@@ -436,7 +441,7 @@ local SkidFling = function(TargetPlayer)
     elseif not TRootPart and not THead and Accessory and Handle then
         SFBasePart(Handle)
     else
-        return Message("Erro", "Alvo inconsistente", 5)
+        return Notify("Alvo inconsistente")
     end
     
     BV:Destroy()
@@ -461,90 +466,89 @@ local SkidFling = function(TargetPlayer)
 end
 
 AddTextBox(Trollar, {
-	Name = "Alvo",
-	Default = "",
-	Placeholder = "Nome do jogador",
-	Callback = function(text)
-		jogadorDigitado = text
-	end
+    Name = "Alvo",
+    Default = "",
+    Placeholder = "Nome do jogador",
+    Callback = function(text)
+        jogadorDigitado = text
+    end
 })
 
 AddToggle(Trollar, {
-	Name = "Visualizar",
-	Default = false,
-	Callback = function(state)
-		visualizando = state
-		
-		if conexaoCam then 
-			conexaoCam:Disconnect() 
-			conexaoCam = nil 
-		end
+    Name = "Visualizar",
+    Default = false,
+    Callback = function(state)
+        visualizando = state
+        
+        if conexaoCam then 
+            conexaoCam:Disconnect() 
+            conexaoCam = nil 
+        end
 
-		if visualizando then
-			if jogadorDigitado and jogadorDigitado ~= "" then
-				local alvo = GetPlayer(jogadorDigitado)
-				if alvo then
-					local focarCamera = function(char)
-						if char then
-							local hum = char:WaitForChild("Humanoid", 5)
-							if hum then workspace.CurrentCamera.CameraSubject = hum end
-						end
-					end
-					focarCamera(alvo.Character)
-					conexaoCam = alvo.CharacterAdded:Connect(focarCamera)
-				end
-			end
-		else
-			local meuHumanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
-			if meuHumanoid then workspace.CurrentCamera.CameraSubject = meuHumanoid end
-		end
-	end
+        if visualizando then
+            if jogadorDigitado and jogadorDigitado ~= "" then
+                local alvo = GetPlayer(jogadorDigitado)
+                if alvo then
+                    local focarCamera = function(char)
+                        if char then
+                            local hum = char:WaitForChild("Humanoid", 5)
+                            if hum then workspace.CurrentCamera.CameraSubject = hum end
+                        end
+                    end
+                    focarCamera(alvo.Character)
+                    conexaoCam = alvo.CharacterAdded:Connect(focarCamera)
+                end
+            end
+        else
+            local meuHumanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+            if meuHumanoid then workspace.CurrentCamera.CameraSubject = meuHumanoid end
+        end
+    end
 })
 
 AddButton(Trollar, {
-	Name = "Teleportar",
-	Callback = function()
-		if jogadorDigitado and jogadorDigitado ~= "" then
-			local alvo = GetPlayer(jogadorDigitado)
-			local meuChar = Player.Character
-			local meuRoot = meuChar and meuChar:FindFirstChild("HumanoidRootPart")
-			if alvo and alvo.Character and meuRoot then
-				local alvoRoot = alvo.Character:FindFirstChild("HumanoidRootPart")
-				if alvoRoot then
-					meuRoot.CFrame = alvoRoot.CFrame * CFrame.new(0, 2, 2)
-				end
-			end
-		end
-	end
+    Name = "Teleportar",
+    Callback = function()
+        if jogadorDigitado and jogadorDigitado ~= "" then
+            local alvo = GetPlayer(jogadorDigitado)
+            local meuChar = Player.Character
+            local meuRoot = meuChar and meuChar:FindFirstChild("HumanoidRootPart")
+            if alvo and alvo.Character and meuRoot then
+                local alvoRoot = alvo.Character:FindFirstChild("HumanoidRootPart")
+                if alvoRoot then
+                    meuRoot.CFrame = alvoRoot.CFrame * CFrame.new(0, 2, 2)
+                end
+            end
+        end
+    end
 })
 
 AddButton(Trollar, {
-	Name = "Arremessar Jogador",
-	Callback = function()
-		if jogadorDigitado and jogadorDigitado ~= "" then
-			AllBool = false
-			local alvo = GetPlayer(jogadorDigitado)
-			if AllBool then
-				for _, x in next, Players:GetPlayers() do
-					if x ~= Player then
-						task.spawn(function() SkidFling(x) end)
-					end
-				end
-			elseif alvo then
-				if alvo.UserId ~= 1414978355 then
-					SkidFling(alvo)
-				else
-					Message("Erro", "Este usuário está na Whitelist!", 5)
-				end
-			else
-				Message("Erro", "Jogador não encontrado", 5)
-			end
-		else
-			Message("Aviso", "Digite o nome de um jogador primeiro!", 5)
-		end
-	end
+    Name = "Arremessar Jogador",
+    Callback = function()
+        if jogadorDigitado and jogadorDigitado ~= "" then
+            AllBool = false
+            local alvo = GetPlayer(jogadorDigitado)
+            if AllBool then
+                for _, x in next, Players:GetPlayers() do
+                    if x ~= Player then
+                        task.spawn(function() SkidFling(x) end)
+                    end
+                end
+            elseif alvo then
+                if alvo.UserId ~= 1414978355 then
+                    SkidFling(alvo)
+                else
+                    Notify("Este usuário está na Whitelist!")
+                end
+            else
+                Notify("Jogador não encontrado")
+            end
+        else
+            Notify("Digite o nome de um jogador primeiro!")
+        end
+    end
 })
-
 
 AddButton(Trollar, {
     Name = "Arremessar Todos",
