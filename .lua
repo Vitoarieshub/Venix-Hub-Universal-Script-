@@ -2090,3 +2090,32 @@ AddSlider(Combate, {
     end
 })
 
+local Players = game:GetService("Players")
+local notificacaoAtivada = false
+Players.PlayerAdded:Connect(function(player)
+    if notificacaoAtivada and MakeNotifi then
+        MakeNotifi({
+            Title = "Jogador",
+            Text = player.Name .. " Entrou no jogo!",
+            Time = 4
+        })
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if notificacaoAtivada and MakeNotifi then
+        MakeNotifi({
+            Title = "Jogador",
+            Text = player.Name .. " Abandonou o jogo.",
+            Time = 4
+        })
+    end
+end)
+
+AddToggle(Config, {
+    Name = "Notificações do jogadores",
+    Default = false,
+    Callback = function(Value)
+        notificacaoAtivada = Value
+    end
+})
