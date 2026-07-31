@@ -1085,7 +1085,7 @@ local savedPositions = {
 
 local slotSelecionado = "Posição 1"
 local teleporteSuaveAtivado = false
-local TEMPO_FIXO = 7
+local TEMPO_FIXO = 9
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
