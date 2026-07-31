@@ -2033,6 +2033,96 @@ AddToggle(Combate, {
     end
 })
 
+local HeadSizeEnabled = false
+local HeadSizeValue = 5
+local HeadTransparencySlider = 0
+local HeadConnection = nil
+
+local function expandHead()
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer and player.Character then
+            local char = player.Character
+            local head = char:FindFirstChild("Head")
+            
+            if head then
+                local alpha = math.clamp(HeadTransparencySlider / 15, 0, 1)
+                
+                head.Size = Vector3.new(HeadSizeValue, HeadSizeValue, HeadSizeValue)
+                head.Transparency = alpha
+                head.CanCollide = false
+                head.Massless = true
+                
+                for _, child in ipairs(head:GetChildren()) do
+                    if child:IsA("Decal") or child:IsA("Texture") then
+                        child.Transparency = alpha
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function resetHead()
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer and player.Character then
+            local char = player.Character
+            local head = char:FindFirstChild("Head")
+            
+            if head then
+                head.Size = Vector3.new(2, 1, 1)
+                head.Transparency = 0
+                head.CanCollide = true
+                head.Massless = false
+                
+                for _, child in ipairs(head:GetChildren()) do
+                    if child:IsA("Decal") or child:IsA("Texture") then
+                        child.Transparency = 0
+                    end
+                end
+            end
+        end
+    end
+end
+
+AddToggle(Combate, {
+    Name = "Hitbox",
+    Default = false,
+    Callback = function(Value)
+        HeadSizeEnabled = Value
+        if Value then
+            HeadConnection = game:GetService("RunService").RenderStepped:Connect(expandHead)
+        else
+            if HeadConnection then
+                HeadConnection:Disconnect()
+                HeadConnection = nil
+            end
+            resetHead()
+        end
+    end
+})
+
+AddSlider(Combate, {
+    Name = "Tamanho do hitbox",
+    MinValue = 2,
+    MaxValue = 15,
+    Default = HeadSizeValue,
+    Increase = 1,
+    Callback = function(Value)
+        HeadSizeValue = Value
+    end
+})
+
+AddSlider(Combate, {
+    Name = "Transparência do hitbox",
+    MinValue = 0,
+    MaxValue = 15,
+    Default = 0,
+    Increase = 1,
+    Callback = function(Value)
+        HeadTransparencySlider = Value
+    end
+})
+
 local Players = game:GetService("Players")
 local notificacaoAtivada = false
 Players.PlayerAdded:Connect(function(player)
