@@ -2033,60 +2033,71 @@ AddToggle(Combate, {
     end
 })
 
-local HitboxEnabled = false
-local HitboxSize = 5
-local HitboxConnection = nil
-local TurquoiseColor = Color3.fromRGB(64, 224, 208)
+local HeadSizeEnabled = false
+local HeadSizeValue = 5
+local HeadTransparencyValue = 0
+local HeadConnection = nil
 
-local function expandHitbox()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = player.Character.HumanoidRootPart
-            hrp.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
-            hrp.Transparency = 0.6
-            hrp.Color = TurquoiseColor
-            hrp.Material = Enum.Material.Neon
-            hrp.CanCollide = false
+local function expandHead()
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            head.Size = Vector3.new(HeadSizeValue, HeadSizeValue, HeadSizeValue)
+            head.Transparency = HeadTransparencyValue
+            head.CanCollide = false
+            head.Massless = true
         end
     end
 end
 
-local function resetHitbox()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = player.Character.HumanoidRootPart
-            hrp.Size = Vector3.new(2, 2, 1)
-            hrp.Transparency = 1
-            hrp.CanCollide = true
+local function resetHead()
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game:GetService("Players").LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            head.Size = Vector3.new(2, 1, 1)
+            head.Transparency = 0
+            head.CanCollide = true
+            head.Massless = false
         end
     end
 end
 
-AddToggle(Combate, {
+AddToggle(Config, {
     Name = "Hitbox",
     Default = false,
     Callback = function(Value)
-        HitboxEnabled = Value
+        HeadSizeEnabled = Value
         if Value then
-            HitboxConnection = RunService.RenderStepped:Connect(expandHitbox)
+            HeadConnection = game:GetService("RunService").RenderStepped:Connect(expandHead)
         else
-            if HitboxConnection then
-                HitboxConnection:Disconnect()
-                HitboxConnection = nil
+            if HeadConnection then
+                HeadConnection:Disconnect()
+                HeadConnection = nil
             end
-            resetHitbox()
+            resetHead()
         end
     end
 })
 
-AddSlider(Combate, {
-    Name = "Tamanho da Hitbox",
+AddSlider(Config, {
+    Name = "Hitbox Size",
     MinValue = 2,
     MaxValue = 15,
-    Default = HitboxSize,
+    Default = HeadSizeValue,
     Increase = 1,
     Callback = function(Value)
-        HitboxSize = Value
+        HeadSizeValue = Value
+    end
+})
+
+AddSlider(Config, {
+    Name = "Hitbox Transparency",
+    MinValue = 0,
+    MaxValue = 1,
+    Default = 0,
+    Increase = 0.1,
+    Callback = function(Value)
+        HeadTransparencyValue = Value
     end
 })
 
