@@ -907,18 +907,21 @@ AddSlider(Trollar, {
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
 
 local loopConexao = nil
 local voando = false
 local bV = nil
 local bBG = nil
+local velocidadeVoo = 50
+local settingsAberto = false
 
 local function ObterAlvoFisico()
     local Character = localPlayer.Character
     if not Character then return nil end
     local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    
     if Humanoid and Humanoid.SeatPart then
         return Humanoid.SeatPart
     end
@@ -940,7 +943,6 @@ local function DesativarVoo()
     if bV then bV:Destroy() bV = nil end
     if bBG then bBG:Destroy() bBG = nil end
     if loopConexao then loopConexao:Disconnect() loopConexao = nil end
-    
     local alvo = ObterAlvoFisico()
     if alvo then
         alvo.AssemblyLinearVelocity = Vector3.zero
@@ -951,11 +953,10 @@ end
 local function VoarComVeiculo()
     DesativarVoo()
     voando = true
-    
     local alvo = ObterAlvoFisico()
     if not alvo then return end
     ForcarDesancorarPecas(alvo)
-    
+
     bV = Instance.new("BodyVelocity")
     bV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bV.Velocity = Vector3.new(0, 4, 0)
@@ -967,31 +968,26 @@ local function VoarComVeiculo()
     bBG.D = 500
     bBG.CFrame = alvo.CFrame
     bBG.Parent = alvo
-    
+
     loopConexao = RunService.Heartbeat:Connect(function()
-        if not voando or not alvo or not alvo.Parent then 
+        if not voando or not alvo or not alvo.Parent then
             DesativarVoo()
-            return 
+            return
         end
-        
-        local numVel = 130
         local cam = workspace.CurrentCamera
         local humanoid = localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid")
-        
         if humanoid and humanoid.MoveDirection.Magnitude > 0 then
-            local direcaoMovimento = humanoid.MoveDirection
-            
-            if direcaoMovimento:Dot(cam.CFrame.LookVector) > 0.4 then
-                bV.Velocity = cam.CFrame.LookVector * numVel
-                local _, camYaw, _ = cam.CFrame:ToEulerAnglesYXZ()
-                bBG.CFrame = CFrame.Angles(0, camYaw, 0)
+            local direcao = humanoid.MoveDirection
+            if direcao:Dot(cam.CFrame.LookVector) > 0.4 then
+                bV.Velocity = cam.CFrame.LookVector * velocidadeVoo
+                local _, yaw = cam.CFrame:ToEulerAnglesYXZ()
+                bBG.CFrame = CFrame.Angles(0, yaw, 0)
             else
-                bV.Velocity = direcaoMovimento * numVel
+                bV.Velocity = direcao * velocidadeVoo
             end
         else
             bV.Velocity = Vector3.zero
         end
-        
         alvo.AssemblyLinearVelocity = Vector3.zero
         alvo.AssemblyAngularVelocity = Vector3.zero
     end)
@@ -1008,6 +1004,85 @@ AddToggle(Trollar, {
         end
     end
 })
+
+local GearFrame = Instance.new("Frame")
+GearFrame.Size = UDim2.new(0.95, 0, 0, 32)
+GearFrame.BackgroundTransparency = 1
+GearFrame.Parent = Trollar
+
+local GearBtn = Instance.new("TextButton")
+GearBtn.Size = UDim2.new(0, 26, 0, 26)
+GearBtn.Position = UDim2.new(0, 6, 0.5, -13)
+GearBtn.BackgroundTransparency = 1
+GearBtn.Text = "⚙"
+GearBtn.TextColor3 = Color3.fromRGB(0, 200, 255)
+GearBtn.Font = Enum.Font.GothamBold
+GearBtn.TextSize = 14
+GearBtn.AutoButtonColor = false
+GearBtn.Parent = GearFrame
+
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Size = UDim2.new(1, -40, 1, 0)
+SpeedLabel.Position = UDim2.new(0, 38, 0, 0)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Velocidade: 50"
+SpeedLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+SpeedLabel.Font = Enum.Font.Gotham
+SpeedLabel.TextSize = 13
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+SpeedLabel.Parent = GearFrame
+
+local SliderFrame = Instance.new("Frame")
+SliderFrame.Size = UDim2.new(0.95, 0, 0, 0)
+SliderFrame.BackgroundTransparency = 1
+SliderFrame.ClipsDescendants = true
+SliderFrame.Parent = Trollar
+
+local BarBg = Instance.new("Frame")
+BarBg.Size = UDim2.new(1, -16, 0, 6)
+BarBg.Position = UDim2.new(0, 8, 0.5, -3)
+BarBg.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+BarBg.Parent = SliderFrame
+Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
+
+local BarFill = Instance.new("Frame")
+BarFill.Size = UDim2.new((50 - 20) / 280, 0, 1, 0)
+BarFill.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+BarFill.Parent = BarBg
+Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1, 0)
+
+GearBtn.MouseButton1Click:Connect(function()
+    settingsAberto = not settingsAberto
+    local info = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    if settingsAberto then
+        TweenService:Create(SliderFrame, info, {Size = UDim2.new(0.95, 0, 0, 28)}):Play()
+    else
+        TweenService:Create(SliderFrame, info, {Size = UDim2.new(0.95, 0, 0, 0)}):Play()
+    end
+end)
+
+local dragging = false
+BarBg.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local rel = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)
+        local value = math.floor(20 + (300 - 20) * rel)
+        velocidadeVoo = value
+        SpeedLabel.Text = "Velocidade: " .. value
+        BarFill.Size = UDim2.new(rel, 0, 1, 0)
+    end
+end)
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
