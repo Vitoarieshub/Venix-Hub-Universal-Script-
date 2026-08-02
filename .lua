@@ -1762,6 +1762,59 @@ AddToggle(Config, {
     end
 })
 
+local StarterGui = game:GetService("StarterGui")
+local TextChatService = game:GetService("TextChatService")
+
+local ChatEnabled = false
+
+local function Notify(text)
+    if MakeNotifi then
+        MakeNotifi({
+            Title = "Venix Hub",
+            Text = text,
+            Time = 3
+        })
+    end
+end
+
+local function ChatEstavaFechado()
+    local fechado = false
+    pcall(function()
+        fechado = not StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Chat)
+    end)
+    return fechado
+end
+
+local function ForcarChat(estado)
+    pcall(function()
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, estado)
+    end)
+    pcall(function()
+        StarterGui:SetCore("ChatActive", estado)
+    end)
+    pcall(function()
+        if TextChatService.ChatWindowConfiguration then
+            TextChatService.ChatWindowConfiguration.Enabled = estado
+        end
+    end)
+end
+
+AddToggle(Config, {
+    Name = "Habilitar Chat",
+    Default = false,
+    Callback = function(Value)
+        ChatEnabled = Value
+        if Value then
+            local estavaFechado = ChatEstavaFechado()
+            ForcarChat(true)
+            if not estavaFechado then
+                Notify("Este servidor já tem chat aberto")
+            end
+        else
+            ForcarChat(false)
+        end
+    end
+})
 
 local Workspace = game:GetService("Workspace")
 local storedTransparency = {}
