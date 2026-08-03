@@ -1766,23 +1766,31 @@ local StarterGui = game:GetService("StarterGui")
 local TextChatService = game:GetService("TextChatService")
 
 local ChatEnabled = false
+local ChatFoiForcado = false
 
 local function Notify(text)
     if MakeNotifi then
         MakeNotifi({
-            Title = "Venix Hub",
+            Title = "Aviso",
             Text = text,
-            Time = 3
+            Time = 2
         })
     end
 end
 
-local function ChatEstavaFechado()
-    local fechado = false
+local function ChatEstaDesativado()
+    local desativado = false
     pcall(function()
-        fechado = not StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Chat)
+        desativado = not StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Chat)
     end)
-    return fechado
+    pcall(function()
+        if TextChatService.ChatWindowConfiguration then
+            if not TextChatService.ChatWindowConfiguration.Enabled then
+                desativado = true
+            end
+        end
+    end)
+    return desativado
 end
 
 local function ForcarChat(estado)
@@ -1805,13 +1813,18 @@ AddToggle(Config, {
     Callback = function(Value)
         ChatEnabled = Value
         if Value then
-            local estavaFechado = ChatEstavaFechado()
-            ForcarChat(true)
-            if not estavaFechado then
-                Notify("Este servidor já tem chat aberto")
+            if ChatEstaDesativado() then
+                ForcarChat(true)
+                ChatFoiForcado = true
+            else
+                ChatFoiForcado = false
+                Notify("Este servidor já tem o chat aberto")
             end
         else
-            ForcarChat(false)
+            if ChatFoiForcado then
+                ForcarChat(false)
+                ChatFoiForcado = false
+            end
         end
     end
 })
