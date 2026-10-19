@@ -288,6 +288,96 @@ local Toggle = AddToggle(Jogador, {
 
 })
 
+AddToggle(Jogador, {
+    Name = "Andar no Ar",
+    Default = false,
+    Callback = function(Value)
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local UserInputService = game:GetService("UserInputService")
+        
+        local localPlayer = Players.LocalPlayer
+        
+        if Value then
+            local character = localPlayer.Character
+            if not character then return end
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            
+            if not humanoidRootPart or not humanoid then return end
+            
+            humanoid.PlatformStand = true
+
+            local bg = Instance.new("BodyGyro")
+            bg.Name = "Venixfly"
+            bg.P = 9e4
+            bg.maxTorque = Vector3.new(9e4, 9e4, 9e4)
+            bg.cframe = humanoidRootPart.CFrame
+            bg.Parent = humanoidRootPart
+
+            local bv = Instance.new("BodyVelocity")
+            bv.Name = "FlyVelocity"
+            bv.velocity = Vector3.new(0, 0, 0)
+            bv.maxForce = Vector3.new(9e4, 9e4, 9e4)
+            bv.Parent = humanoidRootPart
+
+            local speed = 16
+
+            _G.DragonFlyConnection = RunService.RenderStepped:Connect(function()
+                if not character or not humanoidRootPart or humanoid.Health <= 0 then
+                    if bg then bg:Destroy() end
+                    if bv then bv:Destroy() end
+                    if _G.DragonFlyConnection then _G.DragonFlyConnection:Disconnect() end
+                    return
+                end
+
+                local camera = workspace.CurrentCamera
+                local moveDirection = Vector3.new()
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
+                    moveDirection = moveDirection + camera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then
+                    moveDirection = moveDirection - camera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
+                    moveDirection = moveDirection + camera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
+                    moveDirection = moveDirection - camera.CFrame.RightVector
+                end
+
+                bv.velocity = moveDirection * speed
+                bg.cframe = camera.CFrame
+            end)
+        else
+            if _G.DragonFlyConnection then
+                _G.DragonFlyConnection:Disconnect()
+                _G.DragonFlyConnection = nil
+            end
+            
+            local character = localPlayer.Character
+            if character then
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                
+                if humanoidRootPart then
+                    if humanoidRootPart:FindFirstChild("Venixfly") then
+                        humanoidRootPart.Venixfly:Destroy()
+                    end
+                    if humanoidRootPart:FindFirstChild("FlyVelocity") then
+                        humanoidRootPart.FlyVelocity:Destroy()
+                    end
+                end
+                
+                if humanoid then
+                    humanoid.PlatformStand = false
+                end
+            end
+        end
+    end
+})
+
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local AllBool = false
