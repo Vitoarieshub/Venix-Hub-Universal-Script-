@@ -294,7 +294,6 @@ AddToggle(Jogador, {
     Callback = function(Value)
         local Players = game:GetService("Players")
         local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
         
         local localPlayer = Players.LocalPlayer
         
@@ -332,22 +331,17 @@ AddToggle(Jogador, {
                 end
 
                 local camera = workspace.CurrentCamera
-                local moveDirection = Vector3.new()
-                
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
-                    moveDirection = moveDirection + camera.CFrame.LookVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then
-                    moveDirection = moveDirection - camera.CFrame.LookVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
-                    moveDirection = moveDirection + camera.CFrame.RightVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
-                    moveDirection = moveDirection - camera.CFrame.RightVector
+                local moveDir = humanoid.MoveDirection
+
+                if moveDir.Magnitude > 0 then
+                    local rawMove = camera.CFrame:VectorToObjectSpace(moveDir)
+                    local finalDir = (camera.CFrame.LookVector * -rawMove.Z) + (camera.CFrame.RightVector * rawMove.X)
+                    
+                    bv.velocity = finalDir.Unit * speed
+                else
+                    bv.velocity = Vector3.new(0, 0, 0)
                 end
 
-                bv.velocity = moveDirection * speed
                 bg.cframe = camera.CFrame
             end)
         else
@@ -377,6 +371,7 @@ AddToggle(Jogador, {
         end
     end
 })
+
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
