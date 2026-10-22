@@ -288,6 +288,7 @@ local Toggle = AddToggle(Jogador, {
 
 })
 
+
 AddToggle(Jogador, {
     Name = "Andar no Ar",
     Default = false,
@@ -305,7 +306,7 @@ AddToggle(Jogador, {
             
             if not humanoidRootPart or not humanoid then return end
             
-            humanoid.PlatformStand = true
+            local currentHeight = humanoidRootPart.Position.Y
 
             local bg = Instance.new("BodyGyro")
             bg.Name = "Venixfly"
@@ -330,18 +331,23 @@ AddToggle(Jogador, {
                     return
                 end
 
+                humanoid.PlatformStand = false
+
                 local camera = workspace.CurrentCamera
                 local moveDir = humanoid.MoveDirection
 
                 if moveDir.Magnitude > 0 then
                     local rawMove = camera.CFrame:VectorToObjectSpace(moveDir)
-                    local finalDir = (camera.CFrame.LookVector * -rawMove.Z) + (camera.CFrame.RightVector * rawMove.X)
+                    local finalDir = Vector3.new(rawMove.X, 0, rawMove.Z)
+                    local worldDir = camera.CFrame:VectorToWorldSpace(finalDir)
                     
-                    bv.velocity = finalDir.Unit * speed
+                    bv.velocity = worldDir.Unit * speed + Vector3.new(0, 0, 0)
                 else
                     bv.velocity = Vector3.new(0, 0, 0)
                 end
 
+                local pos = humanoidRootPart.Position
+                humanoidRootPart.CFrame = CFrame.new(pos.X, currentHeight, pos.Z) * camera.CFrame.Rotation
                 bg.cframe = camera.CFrame
             end)
         else
@@ -371,6 +377,7 @@ AddToggle(Jogador, {
         end
     end
 })
+
 
 
 local Players = game:GetService("Players")
