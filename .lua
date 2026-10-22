@@ -288,7 +288,7 @@ local Toggle = AddToggle(Jogador, {
 
 })
 
-AddToggle(Main, {
+AddToggle(Jogador, {
     Name = "Andar no Ar",
     Default = false,
     Callback = function(Value)
