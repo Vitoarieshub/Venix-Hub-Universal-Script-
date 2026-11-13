@@ -69,91 +69,6 @@ AddButton(Jogador, {
     end
 })
 
-AddToggle(Jogador, {
-    Name = "Teste",
-    Default = false,
-    KeyCode = Enum.KeyCode.E,
-    Callback = function(Value)
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        
-        local localPlayer = Players.LocalPlayer
-        
-        if Value then
-            local character = localPlayer.Character
-            if not character then return end
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            
-            if not humanoidRootPart or not humanoid then return end
-            
-            humanoid.PlatformStand = true
-
-            local bg = Instance.new("BodyGyro")
-            bg.Name = "Venixfly"
-            bg.P = 9e4
-            bg.maxTorque = Vector3.new(9e4, 9e4, 9e4)
-            bg.cframe = humanoidRootPart.CFrame
-            bg.Parent = humanoidRootPart
-
-            local bv = Instance.new("BodyVelocity")
-            bv.Name = "FlyVelocity"
-            bv.velocity = Vector3.new(0, 0, 0)
-            bv.maxForce = Vector3.new(9e4, 9e4, 9e4)
-            bv.Parent = humanoidRootPart
-
-            local speed = 16
-
-            _G.DragonFlyConnection = RunService.RenderStepped:Connect(function()
-                if not character or not humanoidRootPart or humanoid.Health <= 0 then
-                    if bg then bg:Destroy() end
-                    if bv then bv:Destroy() end
-                    if _G.DragonFlyConnection then _G.DragonFlyConnection:Disconnect() end
-                    return
-                end
-
-                local camera = workspace.CurrentCamera
-                local moveDir = humanoid.MoveDirection
-
-                if moveDir.Magnitude > 0 then
-                    local rawMove = camera.CFrame:VectorToObjectSpace(moveDir)
-                    local finalDir = (camera.CFrame.LookVector * -rawMove.Z) + (camera.CFrame.RightVector * rawMove.X)
-                    
-                    bv.velocity = finalDir.Unit * speed
-                else
-                    bv.velocity = Vector3.new(0, 0, 0)
-                end
-
-                bg.cframe = camera.CFrame
-            end)
-        else
-            if _G.DragonFlyConnection then
-                _G.DragonFlyConnection:Disconnect()
-                _G.DragonFlyConnection = nil
-            end
-            
-            local character = localPlayer.Character
-            if character then
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                
-                if humanoidRootPart then
-                    if humanoidRootPart:FindFirstChild("Venixfly") then
-                        humanoidRootPart.Venixfly:Destroy()
-                    end
-                    if humanoidRootPart:FindFirstChild("FlyVelocity") then
-                        humanoidRootPart.FlyVelocity:Destroy()
-                    end
-                end
-                
-                if humanoid then
-                    humanoid.PlatformStand = false
-                end
-            end
-        end
-    end
-})
-
 
 AddToggle(Jogador, {
     Name = "Voar no Ar (Teste)",
@@ -187,7 +102,7 @@ AddToggle(Jogador, {
             bv.maxForce = Vector3.new(9e4, 9e4, 9e4)
             bv.Parent = humanoidRootPart
 
-            local speed = 16
+            local speed = 25
 
             _G.DragonFlyConnection = RunService.RenderStepped:Connect(function()
                 if not character or not humanoidRootPart or humanoid.Health <= 0 then
