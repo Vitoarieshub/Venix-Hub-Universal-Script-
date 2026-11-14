@@ -757,6 +757,8 @@ AddToggle(Trollar, {
     end
 })
 
+
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -977,7 +979,7 @@ local function StopFreeCam()
     end
 end
 
-AddToggle(Trollar, {
+AddToggle(Jogador, {
     Name = "Câmera Livre",
     Default = false,
     Callback = function(v)
@@ -985,7 +987,7 @@ AddToggle(Trollar, {
     end
 })
 
-AddSlider(Trollar, {
+AddSlider(Jogador, {
     Name = "Velocidade da Câmera",
     MinValue = 20,
     MaxValue = 900,
