@@ -102,7 +102,7 @@ AddToggle(Jogador, {
             bv.maxForce = Vector3.new(9e4, 9e4, 9e4)
             bv.Parent = humanoidRootPart
 
-            local speed = 25
+            local speed = 80
 
             _G.DragonFlyConnection = RunService.RenderStepped:Connect(function()
                 if not character or not humanoidRootPart or humanoid.Health <= 0 then
